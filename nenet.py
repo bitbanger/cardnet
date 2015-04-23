@@ -132,7 +132,7 @@ def sort_trick(hand):
 		guessed = mn
 		dist = 13 - dist
 
-	to_perm = sorted([x for x in hand if (x != guessed and x != handed)])
+	to_perm = sorted([x for x in hand if (x != guessed and x != handed)], key = lambda x: x[::-1])
 	perm = table[dist]
 	in_order = [to_perm[i] for i in perm]
 
