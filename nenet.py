@@ -20,14 +20,14 @@ def dsig(n):
 
 # Knobs
 precociousness = 0.2
-epochs = 300
+epochs = 0
 epochs += 100 # DO OVERLEARNING
 
 # suit and val for four cards, plus a bias
-num_in = 8 + 1
-num_hid = 9
+num_in = 68 + 1
+num_hid = 90
 # one for suit and 13 to pick from for val
-num_out = 14
+num_out = 17
 
 # Weights
 in_hid_weights = [[rand_neg(1) for j in range(num_hid)] for i in range(num_in)]
@@ -141,8 +141,14 @@ def sort_trick(hand):
 def flatten(l):
 	r = []
 	for t in l:
-		r.append(t[0] * 1.0 / 4)
-		r.append(t[1] * 1.0 / 13)
+		rp1 = [0.0] * 4
+		rp1[t[0]-1] = 1.0
+
+		rp2 = [0.0] * 13
+		rp2[t[1]-1] = 1.0
+		
+		r += rp1
+		r += rp2
 	return r
 
 suit_names = {
@@ -166,7 +172,7 @@ def main():
 		print "made: %s" % trick
 
 	training = []
-	for i in range(4000):
+	for i in range(2000):
 		training.append(sort_trick(random.sample(cards, 5)))
 	test = []
 	for i in range(1000):
@@ -180,9 +186,14 @@ def main():
 			to_learn = flatten(tr[:-1])
 			learn(to_learn)
 
-			want = [0.0] * 14
-			want[0] = tr[0][0] * 1.0 / 4
-			want[tr[-1][1]] = 1.0
+			want_suit = [0.0] * 4
+			want_suit[tr[0][0]-1] = 1.0
+
+			want_val = [0.0] * 13
+			want_val[tr[-1][1]-1] = 1.0
+
+			want = want_suit + want_val
+
 			backprop(want, precociousness)
 
 			# backprop([tr[-1][0]*1.0/4, tr[-1][1]*1.0/13], precociousness)
@@ -196,7 +207,6 @@ def main():
 	for t in test:
 		learn(flatten(t[:-1]))
 		ov = out_vals[1:]
-		print(out_vals)
 		print "learned:", out_vals[0], ",", out_vals.index(max(ov))
 		print "wanted:", t[-1]
 			
