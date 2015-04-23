@@ -19,13 +19,12 @@ def dsig(n):
 	return sv*(1-sv)
 
 # Knobs
-precociousness = 0.2
-epochs = 0
-epochs += 100 # DO OVERLEARNING
+precociousness = 0.15
+epochs = 100
 
 # suit and val for four cards, plus a bias
-num_in = 68 + 1
-num_hid = 90
+num_in = 20 + 1
+num_hid = 30
 # one for suit and 13 to pick from for val
 num_out = 17
 
@@ -136,7 +135,8 @@ def sort_trick(hand):
 	perm = table[dist]
 	in_order = [to_perm[i] for i in perm]
 
-	return [handed] + in_order + [guessed]
+	# return [handed] + in_order + [guessed]
+	return [handed] + perm + [guessed]
 
 def flatten(l):
 	r = []
@@ -172,26 +172,35 @@ def main():
 		print "made: %s" % trick
 
 	training = []
-	for i in range(2000):
+	for i in range(8000):
 		training.append(sort_trick(random.sample(cards, 5)))
 	test = []
 	for i in range(1000):
 		test.append(sort_trick(random.sample(cards, 5)))
 
 	last_percent = -1.0
+	correctness = 0.0
 	
 	for e in range(epochs):
 		random.shuffle(training)
 		for tr in training:
-			to_learn = flatten(tr[:-1])
+			# to_learn = flatten(tr[:-1])
+			val = [0.0] * 13
+			val[tr[0][1]-1] = 1.0
+			suit = [0.0] * 4
+			suit[tr[0][0]-1] = 1.0
+			to_learn = suit + val + [x*1.0/2 for x in tr[1:-1]]
 			learn(to_learn)
 
 			want_suit = [0.0] * 4
 			want_suit[tr[0][0]-1] = 1.0
+			#want_suit = tr[0][0]*1.0 / 4
 
 			want_val = [0.0] * 13
 			want_val[tr[-1][1]-1] = 1.0
+			#want_val = tr[-1][1]*1.0 / 13
 
+			#want = [want_suit] + want_val
 			want = want_suit + want_val
 
 			backprop(want, precociousness)
@@ -200,16 +209,29 @@ def main():
 			percent = int(e*100.0/epochs)
 			if percent != last_percent:
 				last_percent = percent
-				sys.stdout.write("Status: %d%% done training            \r" % percent)
+				sys.stdout.write("Status: %d%% done training (%.4f)            \r" % (percent, correctness))
 				sys.stdout.flush()
+		correctness = ctest(test)
 
+def ctest(test):
 	correct = 0
 	for t in test:
-		learn(flatten(t[:-1]))
-		ov = out_vals[1:]
-		print "learned:", out_vals[0], ",", out_vals.index(max(ov))
-		print "wanted:", t[-1]
-			
+		val = [0.0] * 13
+		val[t[0][1]-1] = 1.0
+		suit = [0.0] * 4
+		suit[t[0][0]-1] = 1.0
+		to_learn = suit + val + [x*1.0/2 for x in t[1:-1]]
+		learn(to_learn)
+		sv = out_vals[:4]
+		ov = out_vals[4:]
+		suit_guess = sv.index(max(sv)) + 1
+		guess = ov.index(max(ov)) + 1
+		if guess == t[-1][1] and suit_guess == t[-1][0]:
+		# if guess == t[-1][1]:
+		# if suit_guess == t[-1][0]:
+			correct += 1
+		
+	return correct*1.0/len(test)
 
 if __name__ == '__main__':
 	main()
