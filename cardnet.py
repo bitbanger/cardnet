@@ -23,7 +23,7 @@ precociousness = 0.15
 epochs = 100
 
 real_train = False
-real_test = False
+real_test = True
 
 # suit and val for four cards, plus a bias
 num_in = 20 + 1
@@ -39,6 +39,20 @@ hid_out_weights = [[rand_neg(1) for j in range(num_out)] for i in range(num_hid)
 in_vals = [1.0] * num_in
 hid_vals = [1.0] * num_hid
 out_vals = [1.0] * num_out
+
+suits = {
+	"clubs": 1,
+	"diamonds": 2,
+	"hearts": 3,
+	"spades": 4,
+}
+
+suit_answers = {
+	1: "clubs",
+	2: "diamonds",
+	3: "hearts",
+	4: "spades",
+}
 
 def serialize(fname):
 	with open(fname, 'w+') as f:
@@ -177,7 +191,7 @@ def main():
 		print "made: %s" % trick
 
 	training = []
-	for i in range(100000):
+	for i in range(30000):
 		training.append(sort_trick(random.sample(cards, 5), real = real_train))
 	test = []
 	for i in range(1000):
@@ -188,6 +202,7 @@ def main():
 	
 	for e in range(epochs):
 		random.shuffle(training)
+		# training = [sort_trick(random.sample(cards, 5), real = real_train) for _ in range(10000)]
 		for tr in training:
 			# to_learn = flatten(tr[:-1])
 			val = [0.0] * 13
@@ -220,7 +235,33 @@ def main():
 				last_percent = percent
 				sys.stdout.write("Status: %d%% done training (%.4f)            \r" % (percent, correctness))
 				sys.stdout.flush()
-		correctness = ctest(test)
+		correctness = ctest([sort_trick(random.sample(cards, 5), real = real_test) for _ in range(1000)])
+	
+	serialize("consc.ai")
+	
+	print "DONE!"
+	print "care to test?"
+	
+	while True:
+		try:
+			l = raw_input("give hand in order: ").split()
+			hand = [(suits[l[i+1]], int(l[i])) for i in range(0, len(l), 2)]
+			val = [0.0] * 13
+			val[hand[0][1]-1] = 1.0
+			suit = [0.0] * 4
+			suit[hand[0][0]-1] = 1.0
+			to_learn = suit + val + [x[1]*1.0/13 for x in hand[1:]]
+			learn(to_learn)
+			sv = out_vals[:4]
+			ov = out_vals[4:]
+			suit_guess = sv.index(max(sv)) + 1
+			guess = ov.index(max(ov)) + 1
+			print "is it the %d of %s?" % (guess, suit_answers[suit_guess])
+		except:
+			print "invalid input"
+			continue
+		
+		
 
 def ctest(test):
 	correct = 0
