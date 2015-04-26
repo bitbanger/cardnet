@@ -22,6 +22,9 @@ def dsig(n):
 precociousness = 0.15
 epochs = 100
 
+real_train = False
+real_test = False
+
 # suit and val for four cards, plus a bias
 num_in = 20 + 1
 num_hid = 30
@@ -112,7 +115,7 @@ table = {
 	5: [2, 0, 1],
 	6: [2, 1, 0],
 }
-def sort_trick(hand):
+def sort_trick(hand, real = False):
 	c1 = None
 	c2 = None
 	shand = sorted(hand)
@@ -135,8 +138,10 @@ def sort_trick(hand):
 	perm = table[dist]
 	in_order = [to_perm[i] for i in perm]
 
-	# return [handed] + in_order + [guessed]
-	return [handed] + perm + [guessed]
+	if real:
+		return [handed] + in_order + [guessed]
+	else:
+		return [handed] + perm + [guessed]
 
 def flatten(l):
 	r = []
@@ -172,11 +177,11 @@ def main():
 		print "made: %s" % trick
 
 	training = []
-	for i in range(8000):
-		training.append(sort_trick(random.sample(cards, 5)))
+	for i in range(100000):
+		training.append(sort_trick(random.sample(cards, 5), real = real_train))
 	test = []
 	for i in range(1000):
-		test.append(sort_trick(random.sample(cards, 5)))
+		test.append(sort_trick(random.sample(cards, 5), real = real_test))
 
 	last_percent = -1.0
 	correctness = 0.0
@@ -189,7 +194,11 @@ def main():
 			val[tr[0][1]-1] = 1.0
 			suit = [0.0] * 4
 			suit[tr[0][0]-1] = 1.0
-			to_learn = suit + val + [x*1.0/2 for x in tr[1:-1]]
+			to_learn = None
+			if real_train:
+				to_learn = suit + val + [x[1]*1.0/13 for x in tr[1:-1]]
+			else:
+				to_learn = suit + val + [x*1.0/2 for x in tr[1:-1]]
 			learn(to_learn)
 
 			want_suit = [0.0] * 4
@@ -220,7 +229,11 @@ def ctest(test):
 		val[t[0][1]-1] = 1.0
 		suit = [0.0] * 4
 		suit[t[0][0]-1] = 1.0
-		to_learn = suit + val + [x*1.0/2 for x in t[1:-1]]
+		to_learn = None
+		if real_test:
+			to_learn = suit + val + [x[1]*1.0/13 for x in t[1:-1]]
+		else:
+			to_learn = suit + val + [x*1.0/2 for x in t[1:-1]]
 		learn(to_learn)
 		sv = out_vals[:4]
 		ov = out_vals[4:]
