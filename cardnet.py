@@ -7,7 +7,7 @@ def rand_neg(a):
 	return (2*a)*random.random() - a
 
 def sig(n):
-	n = min(500, max(-500, n))
+	# n = min(500, max(-500, n))
 	try:
 		return 1.0/(1+math.exp(-n))
 	except:
@@ -19,17 +19,26 @@ def dsig(n):
 	return sv*(1-sv)
 
 # Knobs
-precociousness = 0.15
+precociousness = 0.2
+# mom = 0.15
+mom = 0.0
 epochs = 100
+train_size = 10000
+test_size = 1000
+hid_neurons = 30
 
 real_train = False
 real_test = True
 
 # suit and val for four cards, plus a bias
 num_in = 20 + 1
-num_hid = 30
+num_hid = hid_neurons + 1
 # one for suit and 13 to pick from for val
 num_out = 17
+
+old_weights_2 = [[0.0 for j in range(num_hid)] for i in range(num_in)]
+old_weights_1 = [[0.0 for j in range(num_out)] for i in range(num_hid)]
+
 
 # Weights
 in_hid_weights = [[rand_neg(1) for j in range(num_hid)] for i in range(num_in)]
@@ -75,7 +84,7 @@ def learn(ins):
 		in_vals[i] = ins[i]
 	
 	# Propagate them forward to the hidden neurons
-	for i in range(len(hid_vals)):
+	for i in range(len(hid_vals)-1):
 		# Weighted sum of all input values, including bias
 		in_sum = sum([(in_vals[j]*in_hid_weights[j][i]) for j in range(len(in_vals))])
 		
@@ -100,7 +109,7 @@ def backprop(outs, precociousness):
 	
 	# Vector of hidden neuron errors (weighted dependencies to output; inelegant! :( )
 	d_hid_hat = [0.0] * num_hid
-	for i in range(num_hid):
+	for i in range(num_hid-1):
 		# The error is the weighted sum of the output errors wired to this hidden neuron
 		error = sum([d_out_hat[j]*hid_out_weights[i][j] for j in range(num_out)])
 		
@@ -111,12 +120,14 @@ def backprop(outs, precociousness):
 	for i in range(num_hid):
 		for j in range(num_out):
 			# Learning rate times hidden neuron's value times output neuron error
-			hid_out_weights[i][j] += precociousness * hid_vals[i] * d_out_hat[j]
+			old_weights_1[i][j] = precociousness * hid_vals[i] * d_out_hat[j] + mom*old_weights_1[i][j]
+			hid_out_weights[i][j] += old_weights_1[i][j]
 	
 	# Re-weight wires from input to hidden
 	for i in range(num_in):
-		for j in range(num_hid):
-			in_hid_weights[i][j] += precociousness * in_vals[i] * d_hid_hat[j]
+		for j in range(num_hid-1):
+			old_weights_2[i][j] = precociousness * in_vals[i] * d_hid_hat[j] + mom*old_weights_2[i][j]
+			in_hid_weights[i][j] += old_weights_2[i][j]
 	
 	# Return squared error
 	return sum([0.5 * (outs[i] - out_vals[i])**2 for i in range(num_out)])
@@ -183,18 +194,12 @@ card_names = {
 
 def main():
 	cards = [(suit, val) for suit in range(1, 5) for val in range(1, 14)]
-	
-	for i in range(10):
-		hand = random.sample(cards, 5)
-		print "got: %s" % hand
-		trick = sort_trick(hand)
-		print "made: %s" % trick
 
 	training = []
-	for i in range(30000):
+	for i in range(train_size):
 		training.append(sort_trick(random.sample(cards, 5), real = real_train))
 	test = []
-	for i in range(1000):
+	for i in range(test_size):
 		test.append(sort_trick(random.sample(cards, 5), real = real_test))
 
 	last_percent = -1.0
@@ -235,7 +240,8 @@ def main():
 				last_percent = percent
 				sys.stdout.write("Status: %d%% done training (%.4f)            \r" % (percent, correctness))
 				sys.stdout.flush()
-		correctness = ctest([sort_trick(random.sample(cards, 5), real = real_test) for _ in range(1000)])
+		# correctness = ctest([sort_trick(random.sample(cards, 5), real = real_test) for _ in range(1000)])
+		correctness = ctest(test)
 	
 	serialize("consc.ai")
 	
